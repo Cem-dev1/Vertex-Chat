@@ -186,10 +186,10 @@ function ParticipantCard({ participant }: { participant: any }) {
         style={{ borderColor: participant.isSpeaking ? "#22c55e" : "transparent" }}
       >
         {participant.isCameraEnabled && hasValidVideoTrack ? (
-      <VideoTrack 
-          trackRef={videoTrack as { participant: any; source: any; publication: any }} 
-          className="absolute inset-0 object-cover w-full h-full"
-        />
+          <VideoTrack 
+            trackRef={videoTrack as any} 
+            className="absolute inset-0 object-cover w-full h-full"
+          />
         ) : (
           <div className="flex flex-col items-center gap-y-4">
             <div className="h-24 w-24 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-2xl ring-4 ring-black/20">
