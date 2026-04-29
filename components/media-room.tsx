@@ -5,12 +5,9 @@ import {
   LiveKitRoom, 
   useParticipants,
   RoomAudioRenderer,
-  ParticipantContext,
   useLocalParticipant,
-  VideoTrack,
-  useTracks,
 } from "@livekit/components-react";
-import { Track, Room } from "livekit-client";
+import { Track } from "livekit-client";
 import { useUser } from "@clerk/nextjs";
 import { Loader2, Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -26,7 +23,6 @@ export const MediaRoom = ({ chatId, video, audio }: MediaRoomProps) => {
   const router = useRouter();
   const [token, setToken] = useState("");
   const [shouldConnect, setShouldConnect] = useState(true);
-  const roomRef = useRef<Room | null>(null);
 
   useEffect(() => {
     if (!user?.firstName) return;
@@ -40,15 +36,6 @@ export const MediaRoom = ({ chatId, video, audio }: MediaRoomProps) => {
       } catch (e) { console.log(e); }
     })()
   }, [user?.firstName, user?.lastName, chatId]);
-
-  // Sayfadan ayrılırken bağlantıyı kapat
-  useEffect(() => {
-    return () => {
-      if (roomRef.current) {
-        roomRef.current.disconnect();
-      }
-    };
-  }, []);
 
   if (token === "") {
     return (
@@ -90,18 +77,13 @@ function LocalControls({ onDisconnect }: { onDisconnect: () => void }) {
 
   const handleDisconnect = async () => {
     try {
-      // Mikrofon ve kamerayı kapat
       if (isMicrophoneEnabled) {
         await localParticipant.setMicrophoneEnabled(false);
       }
       if (isCameraEnabled) {
         await localParticipant.setCameraEnabled(false);
       }
-      
-      // Parent'a disconnect olduğunu bildir
       onDisconnect();
-      
-      // Geri git
       router.back();
     } catch (error) {
       console.error("Error disconnecting:", error);
@@ -164,66 +146,71 @@ function DiscordVideoInterface() {
 }
 
 function ParticipantCard({ participant }: { participant: any }) {
-  // useTracks ile güvenli bir şekilde track'leri al
-  const tracks = useTracks(
-    [
-      { source: Track.Source.Camera, withPlaceholder: true },
-    ],
-    { onlySubscribed: false }
-  );
+  const videoRef = useRef<HTMLVideoElement>(null);
   
-  const videoTrack = tracks
-    .filter(track => track.participant.identity === participant.identity)
-    .find(track => track.source === Track.Source.Camera);
+  // Video track'i participant'ten al
+  const videoPublication = participant.getTrack?.(Track.Source.Camera);
+  const videoTrack = videoPublication?.track;
   
-  // Sadece gerçek track varsa göster (placeholder değilse)
-  const hasValidVideoTrack = videoTrack && 'publication' in videoTrack && videoTrack.publication?.track;
+  // Video track'i video elementine bağla
+  useEffect(() => {
+    if (videoRef.current && videoTrack) {
+      videoRef.current.srcObject = new MediaStream([videoTrack]);
+    }
+    
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    };
+  }, [videoTrack]);
+  
+  const hasVideo = participant.isCameraEnabled && videoTrack;
   
   return (
-    <ParticipantContext.Provider value={participant}>
-      <div 
-        className="group relative flex items-center justify-center bg-[#2b2d31] rounded-2xl overflow-hidden border-4 transition-all duration-300 shadow-xl aspect-video w-full sm:w-[45%] lg:w-[30%]"
-        style={{ borderColor: participant.isSpeaking ? "#22c55e" : "transparent" }}
-      >
-        {participant.isCameraEnabled && hasValidVideoTrack ? (
- // 190. satırı tam olarak bu üç satırla değiştir:
-          <VideoTrack 
-            // @ts-ignore: LiveKit track type mismatch during build
-            trackRef={videoTrack as any} 
-            className="absolute inset-0 object-cover w-full h-full"
-          />
-        ) : (
-          <div className="flex flex-col items-center gap-y-4">
-            <div className="h-24 w-24 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-2xl ring-4 ring-black/20">
-              {participant.identity?.charAt(0).toUpperCase() || "?"}
-            </div>
-            <p className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full">
-              {participant.identity}
-            </p>
+    <div 
+      className="group relative flex items-center justify-center bg-[#2b2d31] rounded-2xl overflow-hidden border-4 transition-all duration-300 shadow-xl aspect-video w-full sm:w-[45%] lg:w-[30%]"
+      style={{ borderColor: participant.isSpeaking ? "#22c55e" : "transparent" }}
+    >
+      {hasVideo ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted={participant.isLocal}
+          className="absolute inset-0 object-cover w-full h-full"
+        />
+      ) : (
+        <div className="flex flex-col items-center gap-y-4">
+          <div className="h-24 w-24 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-2xl ring-4 ring-black/20">
+            {participant.identity?.charAt(0).toUpperCase() || "?"}
           </div>
-        )}
+          <p className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full">
+            {participant.identity}
+          </p>
+        </div>
+      )}
 
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
-          <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg">
-            <p className="text-white text-sm font-medium">
-              {participant.identity} {participant.isLocal && <span className="text-indigo-400">(Sen)</span>}
-            </p>
-          </div>
-
-          {!participant.isMicrophoneEnabled && (
-            <div className="bg-rose-500/90 p-2 rounded-full shadow-lg backdrop-blur-sm">
-              <MicOff className="h-3.5 w-3.5 text-white" />
-            </div>
-          )}
+      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
+        <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg">
+          <p className="text-white text-sm font-medium">
+            {participant.identity} {participant.isLocal && <span className="text-indigo-400">(Sen)</span>}
+          </p>
         </div>
 
-        {participant.isSpeaking && (
-          <>
-            <div className="absolute top-4 right-4 h-3 w-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
-            <div className="absolute inset-0 ring-2 ring-emerald-500/50 rounded-2xl pointer-events-none" />
-          </>
+        {!participant.isMicrophoneEnabled && (
+          <div className="bg-rose-500/90 p-2 rounded-full shadow-lg backdrop-blur-sm">
+            <MicOff className="h-3.5 w-3.5 text-white" />
+          </div>
         )}
       </div>
-    </ParticipantContext.Provider>
+
+      {participant.isSpeaking && (
+        <>
+          <div className="absolute top-4 right-4 h-3 w-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
+          <div className="absolute inset-0 ring-2 ring-emerald-500/50 rounded-2xl pointer-events-none" />
+        </>
+      )}
+    </div>
   );
 }
