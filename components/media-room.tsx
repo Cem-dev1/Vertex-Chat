@@ -148,9 +148,17 @@ function DiscordVideoInterface() {
 function ParticipantCard({ participant }: { participant: any }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   
-  // Video track'i participant'ten al
-  const videoPublication = participant.getTrack?.(Track.Source.Camera);
-  const videoTrack = videoPublication?.track;
+  // Video track'i participant'ten al - getTrack methodu yoksa alternatif
+  let videoTrack = null;
+  try {
+    const videoPublication = participant.getTrack?.(Track.Source.Camera);
+    videoTrack = videoPublication?.track;
+  } catch (e) {
+    // Alternatif yol
+    const tracks = participant.tracks || [];
+    const videoPub = tracks.find((t: any) => t.source === Track.Source.Camera);
+    videoTrack = videoPub?.track;
+  }
   
   // Video track'i video elementine bağla
   useEffect(() => {
