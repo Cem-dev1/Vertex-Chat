@@ -186,7 +186,9 @@ function ParticipantCard({ participant }: { participant: any }) {
         style={{ borderColor: participant.isSpeaking ? "#22c55e" : "transparent" }}
       >
         {participant.isCameraEnabled && hasValidVideoTrack ? (
+ // 190. satırı tam olarak bu üç satırla değiştir:
           <VideoTrack 
+            // @ts-ignore: LiveKit track type mismatch during build
             trackRef={videoTrack as any} 
             className="absolute inset-0 object-cover w-full h-full"
           />
