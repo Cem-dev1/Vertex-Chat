@@ -13,7 +13,7 @@ const handleAuth = async () => {
 
 export const ourFileRouter = {
     // Modal'ın beklediği endpoint ismi
-    serverImage: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
+    serverImage: f({ image: { maxFileSize: "8MB", maxFileCount: 1 } })
         .middleware(async () => {
             const user = await handleAuth();
             // user zaten { userId } formatında olduğu için direkt return ediyoruz

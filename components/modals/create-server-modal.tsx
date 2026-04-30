@@ -66,23 +66,22 @@ export const CreateServerModal = () => {
 
   const isLoading = form.formState.isSubmitting;
 
-// onSubmit fonksiyonunu şu şekilde güncelle:
 const onSubmit = async (values: z.infer<typeof formSchema>) => {
   try {
-    // 1. Sunucuyu oluştur ve dönen veriyi al
     const response = await axios.post("/api/servers", values);
-
-    // 2. Formu temizle
     form.reset();
-    
-    // 3. Modalı kapat
     onClose();
 
-    // 4. Sayfayı yenile ve kullanıcıyı YENİ SUNUCUYA yönlendir
-    // Bu adım çok kritik, çünkü router.refresh() bazen tek başına state'i güncellemeye yetmeyebilir.
-    router.refresh();
+    // Sayfayı reload etmeden hemen önce bir yönlendirme yapıp, 
+    // tarayıcının o sayfayı taze bir şekilde çekmesini sağlıyoruz.
     router.push(`/servers/${response.data.id}`);
     
+    // Küçük bir gecikme ile (timeout) sayfanın state'ini oturtup reload atabilirsin 
+    // ama router.push zaten çoğu zaman yeterli olur.
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+
   } catch (error) {
     console.log("SERVER_CREATE_ERROR", error);
   }
@@ -91,15 +90,18 @@ const onSubmit = async (values: z.infer<typeof formSchema>) => {
   const handleClose = () => {
     form.reset();
     onClose();
+    window.location.reload();
   }
 
   if (!isMounted) {
-    return null;
+  return <div className="hidden" />; // null yerine gizli bir div dönmek layout stabilitesini koruyabilir.
   }
 
   return (
     <Dialog open={isModalOpen} onOpenChange={handleClose}>
-      <DialogContent className="bg-white text-black p-0 overflow-hidden">
+    <DialogContent 
+        className="z-[9999] bg-white text-black p-0 overflow-hidden border-none shadow-2xl"
+      >
         <DialogHeader className="pt-8 px-6">
           <DialogTitle className="text-2xl text-center font-bold">
             Customize your server
@@ -118,12 +120,13 @@ const onSubmit = async (values: z.infer<typeof formSchema>) => {
                   render={({ field }) => (
                     <FormItem>
                       <FormControl>
-                        {/* ARTIK PATLAMAZ */}
-                        <FileUpload
-                          endpoint="serverImage"
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
+                     <div className="flex items-center justify-center min-h-[150px]"> 
+                          <FileUpload
+                            endpoint="serverImage"
+                            value={field.value}
+                            onChange={field.onChange}
+                          />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

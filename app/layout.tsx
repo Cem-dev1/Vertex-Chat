@@ -24,25 +24,29 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      {/* html ve body etiketlerinde suppressHydrationWarning olması önemli */}
       <html lang="en" suppressHydrationWarning>
+        {/* h-full ekleyerek body'nin tüm ekranı kaplamasını sağlıyoruz */}
         <body className={cn(
           font.className,
-          // bg-white ve dark mode rengini buraya net veriyoruz
-          "bg-white dark:bg-[#313338]"
+          "bg-white dark:bg-[#313338] h-full" 
         )}>
           <ThemeProvider 
             attribute="class"
-            defaultTheme="dark" // Varsayılanı dark yaptığın için modal bazen karanlıkta kalıyor olabilir
+            defaultTheme="dark"
             enableSystem={false}
-            storageKey="discord-theme" //modalprovider eklencek children ustune 
+            storageKey="discord-theme"
           >
-         <QueryProvider>
-            <SocketProvider>
-              <ModalProvider />
-                {children}
-             </SocketProvider>
-           </QueryProvider>
+            <QueryProvider>
+              <SocketProvider>
+                <ModalProvider />
+                {/* Buraya bir main veya div ekleyip h-full vermek, 
+                   mobil tarayıcılardaki yükseklik sorununu çözer.
+                */}
+                <main className="h-full">
+                  {children}
+                </main>
+              </SocketProvider>
+            </QueryProvider>
           </ThemeProvider>
         </body>
       </html>

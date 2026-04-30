@@ -1,44 +1,52 @@
+// app/api/livekit/route.ts
 import { AccessToken } from "livekit-server-sdk";
-import { NextRequest, NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
-// DİKKAT: "export default" DEĞİL, direkt "export async function GET" olmalı
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const room = searchParams.get("room");
+  const username = searchParams.get("username");
+
+  console.log("LiveKit API called:", { room, username });
+
+  if (!room) {
+    return new NextResponse("Missing room", { status: 400 });
+  }
+
+  if (!username) {
+    return new NextResponse("Missing username", { status: 400 });
+  }
+
+  const apiKey = process.env.LIVEKIT_API_KEY;
+  const apiSecret = process.env.LIVEKIT_API_SECRET;
+
+  console.log("API Key exists:", !!apiKey);
+  console.log("API Secret exists:", !!apiSecret);
+
+  if (!apiKey || !apiSecret) {
+    return new NextResponse("Server misconfigured", { status: 500 });
+  }
+
   try {
-    const user = await currentUser();
-    const section = req.nextUrl.searchParams.get("room");
-    const username = req.nextUrl.searchParams.get("username");
-
-    if (!section || !username) {
-      return new NextResponse("Missing room or username", { status: 400 });
-    }
-
-    if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    const apiKey = process.env.LIVEKIT_API_KEY;
-    const apiSecret = process.env.LIVEKIT_API_SECRET;
-    const wsUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
-
-    if (!apiKey || !apiSecret || !wsUrl) {
-      return new NextResponse("Server configuration error", { status: 500 });
-    }
-
     const at = new AccessToken(apiKey, apiSecret, {
       identity: username,
+      ttl: "60m", // Token süresini artırdım
     });
 
     at.addGrant({ 
+      room: room, 
       roomJoin: true, 
-      room: section, 
       canPublish: true, 
-      canPublishData: true 
+      canSubscribe: true,
+      canPublishData: true
     });
 
-    return NextResponse.json({ token: await at.toJwt() });
+    const token = await at.toJwt();
+    console.log("Token generated successfully");
+    
+    return NextResponse.json({ token });
   } catch (error) {
-    console.log("[LIVEKIT_GET_ERROR]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    console.error("Token generation error:", error);
+    return new NextResponse("Token generation failed", { status: 500 });
   }
 }
